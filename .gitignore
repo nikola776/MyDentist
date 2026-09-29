@@ -15,17 +15,13 @@ npm-debug.log*
 deck/src/assets/*.svg
 
 # ---------------------------------------------------------------------------
-# Client source material
+# Client source material under docs/client documentation/ IS tracked — the
+# briefs, RFPs and assessments need to travel with the repository. Keep the
+# remote private; that material carries a confidentiality label.
 #
-# Everything under docs/client documentation/ is the client's own material:
-# briefs, RFPs, spreadsheets, exports. It may carry third-party personal data
-# or a confidentiality label, so the folder is tracked but its contents are not.
-# Drop files in there freely.
-#
-# To track one deliberately:  git add -f "docs/client documentation/<file>"
+# Loose email exports are still excluded: they are correspondence rather than
+# delivered documents, and carry sender/recipient personal data.
 # ---------------------------------------------------------------------------
-docs/client documentation/*
-!docs/client documentation/.gitkeep
 *.eml
 
 # ---------------------------------------------------------------------------

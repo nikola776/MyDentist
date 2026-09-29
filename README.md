@@ -14,7 +14,7 @@ docs/
   Architecture.md          Our target architecture: three planes, the transaction layer, the write path.
   additional_context.md    Discovery-phase scope, with ownership and sequencing notes.
   client documentation/    Client-supplied source material — the brief, the MoSCoW assessment.
-                           Folder is tracked; contents are gitignored. See "Client material".
+                           Tracked, and confidential. See "Client material".
   diagram-conventions.md   The visual language. Authoritative; read it before drawing anything.
   diagrams/
     mermaid/   *.mmd       Hand-edited sources. The only diagram files you edit.
@@ -61,16 +61,16 @@ and revert anything whose source is untouched.
 
 ## Client material
 
-`docs/client documentation/` is where client-supplied files go. **Its contents are gitignored.**
-The delivery brief is marked *Confidential — for named recipient partners only*, and material of
-that kind routinely carries third-party personal data. The folder travels with the repo; the
-files do not.
+`docs/client documentation/` holds the client-supplied source material — the delivery brief, the
+MoSCoW vendor assessment — and **it is tracked**, so the documents travel with the repository.
 
-If a specific file genuinely belongs in history, force it in deliberately:
+That material is marked *Confidential — for named recipient partners only*. Two consequences worth
+keeping in view: **the remote must stay private**, and anything committed here is permanent in
+history even if deleted later. Office files are marked binary in `.gitattributes`, so each revision
+stores a full copy rather than a diff — re-commit updated versions deliberately, not on every save.
 
-```bash
-git add -f "docs/client documentation/<file>"
-```
+Loose `.eml` exports remain excluded. They are correspondence rather than delivered documents and
+carry sender and recipient personal data.
 
 ## Conventions
 
