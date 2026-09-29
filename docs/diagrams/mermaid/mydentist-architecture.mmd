@@ -1,0 +1,136 @@
+flowchart LR
+
+  %% =========================================================
+  %% WORKSTREAM 2 - Knowledge Assistant
+  %% =========================================================
+  subgraph WS2["WORKSTREAM 2 - Knowledge Assistant (master + domain agents)"]
+    direction TB
+    Staff["Staff<br/>10,800 users"]
+    Widget["Wisdom widget<br/>custom"]
+    Teams["Microsoft Teams<br/>Azure Bot path"]
+    EntraWS2["Entra ID<br/>Conditional Access<br/>on-behalf-of flow"]
+
+    subgraph Runtime["Agent runtime - Azure AI Foundry Agent Service<br/>(code-first; MCP boundary keeps runtime swappable)"]
+      direction TB
+      Master["Master agent<br/>routes intent - NEVER answers<br/>low confidence: clarify or human path"]
+      ITAgent["IT helpdesk agent<br/>(first, per DEI design)"]
+      HRAgent["HR / People agent"]
+      FacAgent["Facilities agent"]
+      MoreAgents["...further domain agents<br/>(onboarding recipe: weeks)"]
+      Master -.-> ITAgent
+      Master -.-> HRAgent
+      Master -.-> FacAgent
+      Master -.-> MoreAgents
+    end
+
+    SharePoint["SharePoint Wisdom<br/>(read-only, owners keep editing)"]
+    ManageEngine["ManageEngine KB<br/>(via Dataverse, read-only)"]
+    Videos["Training videos<br/>transcripts + timestamps"]
+
+    Staff -.-> Widget
+    Staff -.-> Teams
+    Widget -.-> Runtime
+    Teams -.-> Runtime
+  end
+
+  %% =========================================================
+  %% SHARED - retrieval & ingestion
+  %% =========================================================
+  subgraph Shared["SHARED - intersection of WS1 + WS2<br/>one MCP retrieval service; one ingestion pipeline; segregated indexes"]
+    direction TB
+    MCPServer["Shared MCP retrieval server"]
+    AISearch["Azure AI Search<br/>WS1 indexes<br/>WS2 indexes"]
+    TrustGate["Trust gate<br/>quality gate before indexing"]
+    DocIntel["Doc Intelligence + vision<br/>OCR + vision dual-read"]
+    MCPServer --> AISearch
+    DocIntel --> TrustGate --> AISearch
+  end
+
+  SharePoint -.-> DocIntel
+  ManageEngine -.-> DocIntel
+  Videos -.-> DocIntel
+
+  Runtime -. "search_kb / get_article<br/>Entra on-behalf-of token<br/>user-scoped ACL at query time<br/>(WS2: domain index scopes)" .-> MCPServer
+
+  %% =========================================================
+  %% WORKSTREAM 1 - AI Voice Handling
+  %% =========================================================
+  subgraph WS1["WORKSTREAM 1 - AI Voice Handling"]
+    direction TB
+    Patients["Patients"]
+    Telephony["Telephony<br/>Maintel PBX<br/>no answer ~5 rings / out-of-hours"]
+    Humans["Human agents<br/>(Practice Reception / Patient Support desk)"]
+
+    subgraph ConvPlane["Conversation Plane"]
+      direction TB
+      VoiceAgent["Voice agent<br/>STT - LLM - TTS<br/>ambient context injected at call start - not a tool"]
+      KQA["Knowledge Q&A tool call<br/>MCP client - the ONLY knowledge tool,<br/>used for anything not already in the ambient context"]
+      SysTools["System tools:<br/>transfer_to_number; transfer_to_agent;<br/>voicemail detect; end call"]
+      TestEval["Testing & Evaluation<br/>simulated conversations (full/partial)<br/>success criteria: hallucination_kb; solved_user_inquiry<br/>A/B experiments on live traffic"]
+      VoiceAgent --> KQA
+      VoiceAgent --> SysTools
+    end
+
+    APIM["Azure APIM (existing gateway) - the only door<br/>HMAC signature + timestamp + IP allowlist"]
+
+    subgraph VOL["Voice Orchestration Layer (Azure UK South) - deterministic transaction plane"]
+      direction TB
+      Personalisation["Personalisation svc<br/>practice ctx; hours; hints<br/>(no PII to voice plane)"]
+      CallSession["Call Session svc<br/>idempotency key per session"]
+      IdentityRes["Identity Resolution<br/>CDP match; 3-form check<br/>returns opaque patient_ref"]
+      PracticeDir["Practice Directory<br/>ODS read cache"]
+      Booking["Booking & Slot svc<br/>availability cache - active locks<br/>SOFT LOCKS: atomic hold, TTL 4 min"]
+      Validation["Deterministic Validation<br/>business rules + confirm-time<br/>re-read of live state"]
+      WriteQueues["Per-practice write queues<br/>single writer per practice<br/>rate limits; FIFO; circuit breaker"]
+      Audit["Immutable audit trail<br/>transcript + action + validation + result,<br/>linked per call session"]
+      LockStore["Lock + idempotency store<br/>(Redis / SQL unique row)"]
+      GovNote["GOVERNANCE:<br/>change-approval ladder per risk tier<br/>(content edit -> prompt/guardrail -> new tool)<br/>+ named risk-register owner per component"]
+      Booking --> Validation --> WriteQueues
+      Booking -.-> LockStore
+    end
+
+    subgraph SoR["Systems of record - transactional writes - A/B/C ladder"]
+      direction LR
+      R4["R4 diary (Carestream)<br/>via agreed write path<br/>(MyCare / API / toolkit)"]
+      Dataphiles["Dataphiles<br/>online booking + SMS/WhatsApp confirmations"]
+      HubSpot["HubSpot CRM<br/>call outcomes; callback tasks"]
+    end
+
+    Fabric["Data & analytics - MS Fabric<br/>fed by extract only, never in the live call path<br/>15-min R4 replication = analytics,<br/>NEVER live availability"]
+
+    Patients -- "Call Practice DDI" --> Telephony
+    Telephony -- "SIP trunk TLS 1.2 + SRTP<br/>X-Practice-ID header / per-practice DDI" --> ConvPlane
+    SysTools -- "warm transfer + context<br/>(screen-pop via HubSpot)" --> Humans
+    ConvPlane -- "server tools + conversation-initiation webhook<br/>TRANSACTIONAL intents only<br/>synchronous request/response, HMAC-signed" --> APIM
+    ConvPlane -. "post-call webhooks - ONE WAY, after call ends<br/>(transcript; analysis; audio), HMAC-signed" .-> APIM
+    APIM <-- "request/response" --> VOL
+    VOL <-- "serialised, idempotent writes<br/>+ read-back verification" --> SoR
+    VOL -- "daily extract: audit + call outcomes<br/>(join with Maintel/Redbox)" --> Fabric
+    R4 -. "15-min replication (analytics)" .-> Fabric
+  end
+
+  KQA -. "MCP - SSE / HTTP streamable via APIM<br/>search_kb / get_article<br/>(WS1: idx-voice-patient-scope)" .-> MCPServer
+
+  %% =========================================================
+  %% Enterprise IT - cross-cutting
+  %% =========================================================
+  subgraph EntIT["Enterprise IT - cross-cutting services, not downstream systems"]
+    direction TB
+    EntraSvc["Entra ID<br/>service / agent identities<br/>scoped write credentials"]
+    KeyVault["Key Vault<br/>secrets; HMAC keys; rotation"]
+    Observability["Observability<br/>App Insights; LLM tracing; Sentinel; Purview<br/>one correlation ID (call_session_id) end-to-end"]
+  end
+
+  VOL -. "uses" .-> EntIT
+
+  %% =========================================================
+  %% Governance - change-approval ladder
+  %% =========================================================
+  subgraph Governance["Governance - Change-approval ladder"]
+    direction TB
+    T1["TIER 1: CONTENT<br/>e.g. practice hours, parking info, phrasing tweak<br/>Approver: single named content owner (no engineering)<br/>Turnaround: hours<br/>Gate: none - direct edit"]
+    T2["TIER 2: CONVERSATIONAL FLOW<br/>e.g. new trigger phrase, reordering a script step<br/>Approver: Product/CX owner + eval suite pass<br/>Turnaround: ~24 hours<br/>Gate: success-evaluation criteria must pass"]
+    T3["TIER 3: GUARDRAIL / SAFETY SCRIPT<br/>e.g. emergency escalation wording, consent preamble, refusal language<br/>Approver: Clinical Safety Officer + InfoSec sign-off + full eval run<br/>Turnaround: weekly release window (expedited path for urgent safety fixes)<br/>Gate: full simulated-conversation test suite + adversarial/red-team pass"]
+    T4["TIER 4: NEW TOOL / WRITE ACTION<br/>e.g. new capability touching R4 / Dataphiles / HubSpot<br/>Approver: threat model + security review + architecture sign-off<br/>Turnaround: planned release only, not ad hoc<br/>Gate: threat model documented + security review + staged rollout"]
+    T1 --> T2 --> T3 --> T4
+  end

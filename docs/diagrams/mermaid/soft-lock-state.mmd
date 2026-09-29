@@ -1,0 +1,18 @@
+stateDiagram-v2
+  direction TB
+
+  [*] --> HELD: hold_slot (atomic SETNX, TTL 240s)
+  HELD --> CONSUMED: confirm_action succeeds
+  HELD --> RELEASED: call ends / caller declines
+  HELD --> EXPIRED: TTL lapses (abandoned call)
+  CONSUMED --> [*]
+  RELEASED --> [*]
+  EXPIRED --> [*]
+
+  note right of HELD
+    Lock key: {practice_id}:{clinician_id}:{slot_start_iso}
+    Owner: call_session_id
+    TTL: N seconds, renewable once, maximum M minutes total
+    Store: Redis SET key value NX PX
+    State: HELD -> CONSUMED / EXPIRED / RELEASED
+  end note
