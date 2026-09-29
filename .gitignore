@@ -1,0 +1,58 @@
+# ---------------------------------------------------------------------------
+# Dependencies and build output
+# ---------------------------------------------------------------------------
+node_modules/
+deck/dist/
+tsconfig.tsbuildinfo
+*.log
+npm-debug.log*
+
+# ---------------------------------------------------------------------------
+# Deck assets are synced from docs/diagrams/svg by `npm run render`.
+# The rendered svg/ and png/ themselves ARE committed on purpose, so the
+# diagrams stay viewable without running the tooling.
+# ---------------------------------------------------------------------------
+deck/src/assets/*.svg
+
+# ---------------------------------------------------------------------------
+# Client source material under docs/client documentation/ IS tracked, so it
+# travels with the repository. Keep the remote private.
+#
+# Loose email exports are still excluded: they are correspondence rather than
+# delivered documents, and carry sender/recipient personal data.
+# ---------------------------------------------------------------------------
+*.eml
+
+# ---------------------------------------------------------------------------
+# Secrets. Discovery means spikes against client APIs — assume credentials.
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+secrets.json
+
+# ---------------------------------------------------------------------------
+# Office lock files. docs/ holds .docx and .xlsx; opening one creates these.
+# ---------------------------------------------------------------------------
+~$*
+.~lock.*
+
+# ---------------------------------------------------------------------------
+# Editor and OS
+# ---------------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------------------------------------------------------------------------
+# Claude Code — per-user permissions, not shared. Agents in .claude/agents/
+# are shared and stay tracked.
+# ---------------------------------------------------------------------------
+.claude/settings.local.json

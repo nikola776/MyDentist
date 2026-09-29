@@ -1,0 +1,17 @@
+# This repo gets edited from both Windows and WSL. Normalise on the way in.
+* text=auto eol=lf
+
+# Never diff or merge these, and keep newline conversion away from them.
+*.docx binary
+*.xlsx binary
+*.pptx binary
+*.pdf  binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.zip  binary
+
+# Rendered output. Mermaid embeds non-deterministic ids, so a re-render changes
+# bytes even when the source did not — suppressing the diff keeps review sane.
+docs/diagrams/svg/*.svg -diff linguist-generated=true
+docs/diagrams/png/*.png -diff linguist-generated=true
