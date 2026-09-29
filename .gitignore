@@ -15,9 +15,8 @@ npm-debug.log*
 deck/src/assets/*.svg
 
 # ---------------------------------------------------------------------------
-# Client source material under docs/client documentation/ IS tracked — the
-# briefs, RFPs and assessments need to travel with the repository. Keep the
-# remote private; that material carries a confidentiality label.
+# Client source material under docs/client documentation/ IS tracked, so it
+# travels with the repository. Keep the remote private.
 #
 # Loose email exports are still excluded: they are correspondence rather than
 # delivered documents, and carry sender/recipient personal data.

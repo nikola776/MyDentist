@@ -13,9 +13,9 @@ the four-week discovery scope and its internal priorities are in `docs/additiona
 docs/
   Architecture.md          Our target architecture: three planes, the transaction layer, the write path.
   additional_context.md    Discovery-phase scope, with ownership and sequencing notes.
-  client documentation/    Client-supplied source material — the brief, the MoSCoW assessment.
-                           Tracked, and confidential. See "Client material".
+  client documentation/    Client-supplied source material. Tracked. See "Client material".
   diagram-conventions.md   The visual language. Authoritative; read it before drawing anything.
+  tooling.md               Approved tooling for the phase, and the rules for client material in it.
   diagrams/
     mermaid/   *.mmd       Hand-edited sources. The only diagram files you edit.
     svg/       *.svg       Generated — what the deck embeds. Committed.
@@ -61,13 +61,13 @@ and revert anything whose source is untouched.
 
 ## Client material
 
-`docs/client documentation/` holds the client-supplied source material — the delivery brief, the
-MoSCoW vendor assessment — and **it is tracked**, so the documents travel with the repository.
+`docs/client documentation/` holds client-supplied source material, and **it is tracked**, so those
+documents travel with the repository.
 
-That material is marked *Confidential — for named recipient partners only*. Two consequences worth
-keeping in view: **the remote must stay private**, and anything committed here is permanent in
-history even if deleted later. Office files are marked binary in `.gitattributes`, so each revision
-stores a full copy rather than a diff — re-commit updated versions deliberately, not on every save.
+Treat the contents as confidential. Two consequences worth keeping in view: **the remote must stay
+private**, and anything committed here is permanent in history even if deleted later. Office files
+are marked binary in `.gitattributes`, so each revision stores a full copy rather than a diff —
+commit updated versions deliberately, not on every save.
 
 Loose `.eml` exports remain excluded. They are correspondence rather than delivered documents and
 carry sender and recipient personal data.
