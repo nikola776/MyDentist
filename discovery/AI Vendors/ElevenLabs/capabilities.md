@@ -3,13 +3,59 @@
 Desk research against the RFP requirement set (`../RFP_MoSCoW_Vendor_Assessment_v2_marked.xlsx`)
 and our target architecture (`docs/Architecture.md`). **Checked against ElevenLabs' public docs,
 API reference, changelog, Trust Centre, DPA, status page and G-Cloud listing on 2026-10-01.**
-Nothing here is vendor-confirmed yet — every claim worth relying on is in the question list at the end.
+Nothing here is vendor-confirmed yet. See **Verification status** for which claims were checked
+against primary sources, and the question list at the end for what only ElevenLabs can answer.
 
 > **Naming.** The product is now **ElevenAgents** (formerly Conversational AI / Agents Platform).
 > Docs moved to `elevenlabs.io/docs/eleven-agents/…`; old `agents-platform` links redirect.
 >
 > **Moving target.** Eleven **v4 and v4 Turbo shipped on 28 Sep 2026**, three days before this
 > check. Pin model IDs for the benchmark and re-check anything model-dependent before a decision.
+
+---
+
+## Verification status
+
+Desk research went through two passes. The first had four research agents read ElevenLabs'
+public sources. The second re-checked the claims that drive gate failures or architecture
+changes against the **raw text** of the primary sources on 2026-10-01: the docs' `.md` pages,
+the pricing page, the G-Cloud listing, the DPA, the NHS DSPT register and the status page.
+
+**Confirmed, word for word in the source:**
+- **Signing.** Tool auth is OAuth2 client credentials, OAuth2 JWT, Basic, bearer or custom headers. HMAC appears only for post-call webhooks. Static egress IPs cover all outbound traffic.
+- **Initiation webhook.** It uses header secrets and must return every custom dynamic variable. A failed or timed-out webhook "can prevent the conversation from starting"; no timeout is published.
+- **Post-call webhooks.** Retries are off by default and only cover transcription webhooks. A webhook auto-disables after 10 consecutive failures if the last success was more than 7 days ago.
+- **Residency.** It's an Enterprise feature with no UK region. EU-only processing needs Zero Retention Mode (ZRM) plus the API. Support and moderation staff may process data outside the region.
+- **ZRM.** Enterprise-only. It stores no recordings or transcripts, so data arrives by webhook only. It turns off MCP and the HubSpot integration, can't be used for batch calls, and limits the LLMs to Gemini, Claude and ElevenLabs-hosted Qwen.
+- **Transfers.** Whisper messages need native Twilio. Over SIP you get Conference or REFER; Blind transfer is Twilio-only. Custom headers travel only on REFER, plus the automatic `X-Conversation-ID` and `X-Caller-ID`. The UUI payload is 256 bytes, sent only to a SIP URI and dropped if too long.
+- **SIP.** TLS 1.2 or higher, G.711 or G.722 audio, digest or IP-list auth, UDP experimental. `X-` headers arrive as `{{sip_*}}` variables.
+- **Card data.** DTMF input is out-of-band only. In ElevenLabs' words, redaction "does not hide digits from the agent during the live call". Card-number redaction is post-call, for select Enterprise customers only, and "not 100%".
+- **HubSpot.** The native integration only supports US-hosted HubSpot accounts.
+- **Welsh.** Supported on v4, v4 Turbo, v3 and v3 Conversational, but not on Multilingual v2 or Flash v2.5. ElevenAgents can use any v3 Conversational language. Welsh speech recognition is in the "Good" band (10–20% word error rate).
+- **Pricing.** Plan list prices, concurrency 4 to 40, $0.08 a minute and $0.16 burst all match the pricing page. Burst goes up to 3× or 300 calls, and burst calls are "deprioritized and may experience higher latency". Queued callers wait at most 1,800 seconds, and outbound calls aren't queued.
+- **Model changes.** Retired LLMs move traffic to a replacement on a schedule (the documented example: warning at 30 days, 25% moved at 14, all at 7). The default fallback list "may be updated without notice".
+- **Guardrails.** They're in alpha. The Manipulation guardrail always ends the conversation. Blocking mode adds 200–500ms.
+- **Training on our data.** Enterprise data isn't used for training by default.
+- **G-Cloud listing.** Agents SLA 99.5% (text-to-speech 99.9%) with 5% or 10% credits. Accessibility standards "None or don't know". PCI DSS (Insight Assurance, 11 Sep 2025), ISO 27001, Cyber Essentials and Cyber Essentials Plus. No phone support; the Customer Success package costs £2,500 a month.
+- **DSPT.** Eleven Labs Ltd 2025-26 (v8): "Standards exceeded", 23 Sep 2025.
+- **DPA.** Dated 8 Apr 2026, with the UK Addendum. Sensitive data is listed as "N/A". §13.1.2 and §13.1.3 allow support and moderation access from outside the residency region. Sub-processor changes get 30 days' notice.
+- **Status page.** The 31 Jul SIP outage and the September Agents and EU-residency incidents are all there.
+
+**Corrected after the check** (already reflected below):
+- Tools and the knowledge base *are* versioned with the agent. Only privacy, call limits and auth are shared across versions.
+- The 31 Jul SIP outage took ~18h in the US and ~12.5h in the EU, not 18h everywhere.
+- "Recording covers the AI leg only" isn't in the docs, so I removed it.
+- Codecs are now phrased as the docs phrase them, rather than as a list of what's excluded.
+
+**Not checked against a primary source — treat as indicative:**
+- **Trust Centre details.** The page is JavaScript-rendered, so these couldn't be read: PCI level and version, ISO 27017/27018/27701/42001, SOC 2, the 28 sub-processors and the LLM training wording.
+- **G-Cloud pricing PDF figures:** the discounts, pilot packages and 60 included sessions.
+- **Absence claims** (the docs don't mention it):
+  - no speech-recognition confidence, no translation field (neither appears in the conversation API schema)
+  - no noise suppression, no human QA scorecard, no BI connector
+  - alerting API-only, RAG limits
+- **Release dates** from the changelog: v4 on 28 Sep, keypad input in Aug 2026, simulate-conversation API removal on 31 Oct.
+- **Latency figures** beyond the models page: v4 Turbo time to first speech, Scribe Realtime.
 
 ---
 
@@ -30,7 +76,8 @@ hours, no callback object, no email. Those were always going to live in the PBX 
 1. **Residency.** No UK region. Processing stays in the EU only with **Enterprise + EU residency +
    Zero Retention Mode + API-only** — and Zero Retention Mode **disables MCP**, our only knowledge tool.
 2. **SLA.** Published Agents SLA is **99.5%**, not the 99.9% the RFP requires. The 90-day status
-   history shows seven Agents/telephony incidents, including an 18-hour SIP failure (31 Jul).
+   history shows seven Agents/telephony incidents, including a SIP outage on 31 Jul that took
+   ~18h to fully restore in the US and ~12.5h in the EU, during which ElevenLabs' own alerting failed to fire.
 3. **Payments.** No native card capture, no pause/resume of STT or recording, and DTMF digits reach
    the LLM live (`redact_input` only cleans the *stored* transcript). PAY-03 can only be met by
    handing the call to Securio before any card data is spoken or keyed — and transfers are one-way.
@@ -82,10 +129,10 @@ Each item names the section of `docs/Architecture.md` it affects.
 | 3 | **Under ZRM the post-call webhook is the only copy of the call.** Transcription webhooks retry 5× (to 30 min) only if retries are switched on; **audio webhooks are never retried**; a webhook auto-disables after 10 consecutive failures. | §2.7 audit trail; TEL-08, REC-01 | The landing endpoint must be highly available and idempotent. Ask whether audio webhooks work under ZRM at all. |
 | 4 | **Initiation webhook has no published timeout,** and a failure "can prevent the conversation from starting". Its response must include every custom dynamic variable the agent defines. | §2.1 personalisation service | Treat it as call-critical: keep the <500ms target and make it highly available; ask the vendor for a fallback (default variables) on timeout. |
 | 5 | **Transfer claim is half right.** No whisper over SIP is correct. But SIP trunks support **Conference and REFER**; only Blind is Twilio-only. Conference carries no headers. REFER carries custom `X-` headers (no documented size limit) plus automatic `X-Conversation-ID` / `X-Caller-ID`. The **256-byte limit is the UUI payload**, sent only when REFER targets a SIP URI; oversized UUI is silently dropped. | §1.4 hand-off | Reword §1.4 (suggested text below). Screen-pop via HubSpot keyed on `X-Conversation-ID` stays the guaranteed channel. |
-| 6 | **Codecs G.711 (a/µ-law) and G.722 only** — no Opus, no G.729. TLS 1.2+, SRTP Disabled/Allowed/Required, digest or IP-allowlist auth. Static SIP IPs (incl. an EU endpoint) are Enterprise-only. | §1.1 call arrival; discovery item 6 | Add codec check to the Maintel coordination list. |
+| 6 | **Codecs: the trunk must offer G.711 (PCMU/PCMA) or G.722,** or resample on our side. No other codec is listed, so assume no Opus or G.729. TLS 1.2+, SRTP Disabled/Allowed/Required, digest or IP-allowlist auth. Static SIP IPs (incl. an EU endpoint) are Enterprise-only. | §1.1 call arrival; discovery item 6 | Add codec check to the Maintel coordination list. |
 | 7 | **No STT confidence reaches the LLM.** | §2.3 identity, tool contracts | Confirm-by-read-back for every identifier our tools consume (DOB, postcode, slot time). That is also the "19 vs 90" test. |
 | 8 | **Retired models migrate automatically** (staged: warning ~30 days, 25% at 14, 100% at 7), and the default fallback-LLM chain "may be updated without notice". | §8 governance; SVC-05 | Pin model IDs, set our own fallback chain, test replacements on a branch. Get a notice period in the contract. |
-| 9 | **Not everything is versioned.** Privacy, retention and call-limit settings are not versioned; KB documents and tools are workspace-shared, so an edit is live for every agent that uses them. | §8.1 change ladder | Tier 1–4 changes to tools and KB need their own control, not just agent branches. |
+| 9 | **Not everything is versioned.** Tool configuration and knowledge base *are* versioned with the agent, but privacy/retention, call limits and auth are shared across all versions. Whether editing a shared tool or KB document changes every version that references it is undocumented. | §8.1 change ladder | Keep privacy and call-limit changes under their own change control; confirm the shared-resource behaviour (question 20). |
 
 **Suggested replacement for §1.4's "why via HubSpot" paragraph:**
 
@@ -117,8 +164,8 @@ Each item names the section of `docs/Architecture.md` it affects.
   and custom rules.
 - **Records & analytics:** transcripts, audio, summaries, up to 30 evaluation criteria and 25/40
   data-collection fields; dashboard with latency p50–p99, errors, evaluation results, per-node stats.
-- **Assurance:** ISO 27001/27017/27018/27701/42001, SOC 2 Type II, PCI DSS 4.0.1 L1 (own
-  environment), NHS DSPT 2025-26 "Standards exceeded", DPA with UK Addendum, 28 sub-processors
+- **Assurance:** ISO 27001, PCI DSS (own environment), Cyber Essentials Plus, NHS DSPT 2025-26
+  "Standards exceeded"; the Trust Centre also claims ISO 27017/27018/27701/42001 and SOC 2 Type II, DPA with UK Addendum, 28 sub-processors
   disclosed, G-Cloud 15 listing.
 
 ## Can't do (or not without us)
@@ -135,7 +182,7 @@ Each item names the section of `docs/Architecture.md` it affects.
 - **Manipulation guardrail ends the call** rather than handing to a human; ~500ms of a blocked
   streamed reply can still be heard.
 - **No human QA scorecard or sampling workflow, no BI connector**, alerting is API-only and undocumented.
-- **No consent capture or mid-call recording stop.** Recording covers the AI leg only.
+- **No consent capture or mid-call recording stop.** Recording is an on/off setting per agent.
 - **Concurrency caps at 40 below Enterprise;** burst calls (3×, 2× price) are deprioritised.
 - **No clinical safety case, DTAC, MHRA registration or published accessibility conformance.**
   The Use Policy forbids tailored health advice without professional review.
@@ -161,7 +208,7 @@ Each item names the section of `docs/Architecture.md` it affects.
 | TEL-05 | Must | | Ent. | Self-serve caps at 40 concurrent (Business). Burst 3× at 2× price, "deprioritized… higher latency". Over-limit calls rejected unless queueing on. |
 | TEL-06 | Must | | We build | Full API/CLI for agents, numbers, branches, env vars. No multi-site admin UI; per-practice config comes from our initiation webhook. One number → one agent. |
 | TEL-07 | Must | | PBX · We build | No schedule object. Mitel diverts on schedule; per-practice hours logic sits in our initiation webhook (`system__time`). |
-| TEL-08 | Must | Gate | Native · ZRM risk | `record_voice` + `retention_days` per agent; per-call audio API and `post_call_audio` webhook (MP3). AI leg only. Under ZRM, webhook is the only copy and is never retried. |
+| TEL-08 | Must | Gate | Native · ZRM risk | `record_voice` + `retention_days` per agent; per-call audio API and `post_call_audio` webhook (MP3). Under ZRM, webhook is the only copy and is never retried. |
 | TEL-09 | Must | | Native | DTMF input (Aug 2026): `#` terminator, 0.5–10s timeout, ≤50 digits, redaction. Out-of-band only; no IVR menu builder. |
 
 ### Conversation & voice experience
@@ -199,8 +246,8 @@ Each item names the section of `docs/Architecture.md` it affects.
 | JRN-02 | Must | | Native | Multiple workflows and agents; agent-to-agent transfer keeps the transcript. |
 | JRN-03 | Should | | Config | Webhook tools, MCP (not under ZRM), dispatch-tool nodes. |
 | JRN-04 | Must | | Config | LLM intent via triggers and edges; no confidence score. Routing testable with tool-call tests. |
-| JRN-05 | Should | | Config · caveat | No-code editors for workflows, procedures and KB; Architect assistant drafts but can't publish; protected main branch. Tools still need developers; KB edits aren't versioned. |
-| JRN-06 | Must | | Native | Versions, branches, drafts, merge, traffic split, env vars, tests per branch. Caveat: KB, tools and privacy settings aren't versioned. |
+| JRN-05 | Should | | Config · caveat | No-code editors for workflows, procedures and KB; Architect assistant drafts but can't publish; protected main branch. Tools still need developers. |
+| JRN-06 | Must | | Native | Versions, branches, drafts, merge, traffic split, env vars, tests per branch. Caveat: privacy/retention, call limits and auth are shared across versions. |
 
 ### Human hand-off & escalation
 
@@ -232,7 +279,7 @@ Each item names the section of `docs/Architecture.md` it affects.
 | ID | MoSCoW | VegaIT | Verdict | Notes |
 |---|---|---|---|---|
 | PAY-01 | Must | Gate | Gap · PBX | No payment capture or Securio integration. Only route is a one-way transfer; coming back to the agent means a new session built in telephony. |
-| PAY-02 | Must | | Native | PCI DSS 4.0.1 Level 1 for ElevenLabs' own environment (Insight Assurance, Sep 2025). Doesn't take our flow out of scope. |
+| PAY-02 | Must | | Native | PCI DSS for ElevenLabs' own environment (Insight Assurance, 11 Sep 2025, per G-Cloud), excluding services not eligible for ZRM. Doesn't take our flow out of scope. |
 | PAY-03 | Must | Gate | Gap | DTMF `redact_input` cleans the stored transcript only — **digits still reach the LLM live**. PAN redaction is post-call, Enterprise, "not 100%". No pause/resume. Must hand off before card data. |
 
 ### Omnichannel
@@ -260,12 +307,12 @@ Each item names the section of `docs/Architecture.md` it affects.
 | SEC-02 | Should | | Gap | No DTAC. Their evidence (DSPT, ISO, pentests) can feed ours. |
 | SEC-03 | Must | Gate | Gap · Ask | G-Cloud declares accessibility standards "None or don't know"; WCAG work "in progress". |
 | SEC-04 | Must | Gate | Native · contract | DPA (8 Apr 2026) with UK Addendum; DSPT 2025-26 "Standards exceeded". Gaps: DPA annex lists sensitive data "N/A"; §13 allows support/moderation access from outside the region. |
-| SEC-05 | Must | Gate | Ent. · conditional | No UK region. EU processing only with EU residency + ZRM + API-only. ZRM disables MCP. Some LLMs unavailable in EU; custom LLM (e.g. Azure OpenAI UK South) always supported. |
+| SEC-05 | Must | Gate | Ent. · conditional | No UK region. EU processing only with EU residency + ZRM + API-only. ZRM disables MCP. Under ZRM only Gemini, Claude and ElevenLabs-hosted Qwen are allowed; custom LLM (e.g. Azure OpenAI UK South) always supported. |
 | SEC-06 | Must | Gate | Ent. · contract | Enterprise not trained on by default; self-serve trains by default (opt-out). LLM providers contractually barred, but Trust Centre wording is loose — get it in the contract. |
 | SEC-07 | Must | Gate | Ent. | Encryption, RBAC, scoped keys. SSO, SCIM and audit logs Enterprise-only; audit logs cover admin actions only, not data access. |
 | SEC-08 | Must | Gate | Native | `retention_days`, `record_voice`, DELETE conversation API. Backups up to 30 days; debug/moderation logs can outlive deletion unless ZRM. |
 | SEC-09 | Must | | Native · NDA | Model cards, security whitepaper, SOC 2, CAIQ, ISO 42001 docs — mostly under NDA. DPIA is ours. |
-| SEC-10 | Should | | Native | ISO 27001:2022, SOC 2 Type II. Cyber Essentials Plus certificate labelled 2025 — check it's current. |
+| SEC-10 | Should | | Native | ISO 27001 (G-Cloud); SOC 2 Type II per the Trust Centre. G-Cloud lists Cyber Essentials and Cyber Essentials Plus certificate numbers — check they're current. |
 
 ### Transcripts, records & data capture
 
@@ -391,7 +438,7 @@ Grouped by what they unblock. **Bold** = blocks a Gate or a design decision.
 18. **Request signing (HMAC or mTLS) for tools, MCP and the initiation webhook — on the roadmap?
     Do webhook tools retry on 5xx or timeout?**
 19. Guardrails and merge proposals: GA dates? Can a manipulation trigger hand off instead of ending the call?
-20. Are KB documents and tools versioned per branch?
+20. Does editing a shared tool or KB document change every agent version that references it?
 21. Do agent tests exercise STT, TTS and telephony, or text only?
 22. Alerting monitor names and defaults; a dashboard screen for them.
 23. Withheld and international caller ID format in `caller_id`.
