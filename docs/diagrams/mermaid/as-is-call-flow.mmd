@@ -1,0 +1,77 @@
+flowchart TB
+    classDef actor    fill:#e2e8f0,stroke:#475569,color:#1e293b;
+    classDef external fill:#fee2e2,stroke:#b91c1c,color:#7f1d1d;
+    classDef adapter  fill:#ede9fe,stroke:#6d28d9,color:#4c1d95;
+    classDef truth    fill:#fef9c3,stroke:#a16207,color:#713f12;
+    classDef cache    fill:#f5f5f4,stroke:#78716c,color:#292524,stroke-dasharray:4 3;
+    classDef blackbox fill:#e4e4e7,stroke:#3f3f46,color:#18181b,stroke-dasharray:6 3;
+
+    PAT([Patient])
+
+    subgraph TEL["Practice telephony"]
+        PBX[Practice phone system<br/>platform unconfirmed — 'Practices tbc']
+        RING{Picked up by the<br/>practice?}
+        ROUTE{What is configured<br/>at this practice?}
+        GAP[Limited call recording<br/>and analytics<br/>Redbox covers the Support Centre<br/>extraction is difficult]
+    end
+
+    subgraph HANDLE["How the call is handled"]
+        REC([Reception<br/>3-form identity check in R4])
+        HP[Hello Patient agent<br/>US AWS — 10 practices only<br/>no system integration]
+        DESK([Patient support desk<br/>overflow route])
+        LOST((Call lost<br/>~3M per year))
+    end
+
+    subgraph BOOK["If the patient wants to book"]
+        PCWEB[[patientcomms.co.uk<br/>booking page]]
+        PC[PatientComms V3<br/>Dataphiles]
+        MYCARE[MyCare adaptor<br/>Dataphiles]
+    end
+
+    subgraph SOR["System of record"]
+        R4[(R4 practice database<br/>on-prem, one per practice)]
+    end
+
+    subgraph DOWN["Where the record goes afterwards"]
+        REP[Transactional replication]
+        SITE[(Site#### on MYD-DW1)]
+        EDW[(DW then EDW — 10+ hour build)]
+        FAB[(Fabric lakehouse and CDP)]
+    end
+
+    PAT -->|"rings the practice"| PBX
+    PBX -->|"rings for ~5 rings, or diverts at once out of hours"| RING
+    RING -->|"yes — ~4M of 7M calls"| REC
+    RING -->|"no"| ROUTE
+    ROUTE -->|"AI pilot, 10 practices"| HP
+    ROUTE -->|"overflow desk"| DESK
+    ROUTE -->|"nothing"| LOST
+    PBX -.->|"leaves little trace"| GAP
+
+    REC ==>|"books directly in"| R4
+    HP -->|"texts or WhatsApps a booking link"| PCWEB
+    HP -.->|"signposts emergencies to 111 or A and E"| PAT
+    HP -.->|"captures a callback for a human"| DESK
+
+    PCWEB -->|"submits the booking to"| PC
+    PC -->|"hands the write to"| MYCARE
+    MYCARE ==>|"commits within max 15 minutes"| R4
+
+    R4 -->|"publishes changes every 15 min"| REP
+    REP -->|"lands in"| SITE
+    SITE -->|"consolidated into"| EDW
+    EDW -->|"feeds — available next day midday"| FAB
+
+    class PAT,REC,DESK actor;
+    class PC,PCWEB external;
+    class MYCARE adapter;
+    class REP external;
+    class R4 truth;
+    class SITE,EDW,FAB cache;
+    class PBX,HP,GAP blackbox;
+
+    style TEL fill:#fafafa,stroke:#a1a1aa
+    style HANDLE fill:#fafafa,stroke:#a1a1aa
+    style BOOK fill:#fafafa,stroke:#a1a1aa
+    style SOR fill:#fffbeb,stroke:#a16207
+    style DOWN fill:#fafafa,stroke:#a1a1aa
