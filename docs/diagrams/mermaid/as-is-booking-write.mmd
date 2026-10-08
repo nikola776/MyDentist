@@ -1,0 +1,41 @@
+sequenceDiagram
+    autonumber
+    actor PAT as Patient
+    participant PBX as Practice phone system (platform unconfirmed)
+    participant HP as Hello Patient (PoC, US AWS)
+    participant PCW as patientcomms.co.uk
+    participant PC as PatientComms V3 (Dataphiles)
+    participant MC as MyCare adaptor
+    participant R4 as R4 practice database
+    participant DW as Replication, DW and EDW
+
+    rect rgb(219,234,254)
+        Note over PAT,HP: 1 — The call, and where it lands
+        PAT->>PBX: Rings the practice
+        PBX->>PBX: Unanswered after ~5 rings, or out of hours
+        PBX->>HP: Diverts to the practice's unique number
+        HP-->>PAT: Identifies itself as an AI agent
+    end
+
+    rect rgb(220,252,231)
+        Note over PAT,HP: 2 — Handled with no system access
+        PAT->>HP: Asks to book an appointment
+        Note over HP: No diary read. No diary write.<br/>No patient data held.
+        HP-->>PAT: Texts or WhatsApps a booking link
+    end
+
+    rect rgb(254,243,199)
+        Note over PAT,R4: 3 — The booking lands asynchronously
+        PAT->>PCW: Opens the link and chooses a slot
+        PCW->>PC: Submits the booking
+        PC->>MC: Hands the write to the adaptor
+        MC->>R4: Commits the appointment
+        Note over MC,R4: Stated as within a maximum of 15 minutes.<br/>Sync interval or customer SLA — unconfirmed.
+    end
+
+    rect rgb(237,233,254)
+        Note over R4,DW: 4 — The record becomes visible to the business
+        R4->>DW: Replicates every 15 minutes
+        DW->>DW: DW then EDW build, 10+ hours
+        Note over DW: Not available until around<br/>mid-day the following day.
+    end
